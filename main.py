@@ -55,7 +55,8 @@ def receive_update():
 
 def start():
     bot.remove_webhook()
-    bot.set_webhook(url=os.environ['RENDER_EXTERNAL_URL'] + TELEGRAM_TOKEN)
+    base_url = os.environ.get('RENDER_EXTERNAL_URL', '').rstrip('/')
+    bot.set_webhook(url=f"{base_url}/{TELEGRAM_TOKEN}")
     app.run(host="0.0.0.0", port=10000)
 
 if __name__ == '__main__':
