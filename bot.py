@@ -62,6 +62,22 @@ def main():
     dp.add_handler(CommandHandler("startserver", startserver))
     updater.start_polling()
     updater.idle()
+# FAKE web server just to keep Render Web Service alive
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
 
+class FakeHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running.")
+
+def start_fake_server():
+    server = HTTPServer(("0.0.0.0", 10000), FakeHandler)
+    server.serve_forever()
+
+# Run the bot AND the fake web server
 if __name__ == '__main__':
-    main()
+    threading.Thread(target=main).start()
+    start_fake_server()
+
