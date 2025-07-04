@@ -1,2 +1,5 @@
 #!/bin/bash
-python3 bot.py
+Xvfb :99 -screen 0 1024x768x24 &
+
+echo "Starting bot..."
+python bot.py
