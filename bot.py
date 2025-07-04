@@ -1,83 +1,65 @@
 import os
 import time
+from flask import Flask, request
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram import Bot, Update
+from telegram.ext import Dispatcher, CommandHandler, CallbackContext
 
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 FALIX_EMAIL = os.getenv('FALIX_EMAIL')
 FALIX_PASSWORD = os.getenv('FALIX_PASSWORD')
+PORT = int(os.environ.get('PORT', 10000))
 
-FALIX_CONSOLE_URL = 'https://client.falixnodes.net/server/console'
+bot = Bot(token=TELEGRAM_TOKEN)
+app = Flask(__name__)
+
+dispatcher = Dispatcher(bot=bot, update_queue=None, use_context=True)
 
 def start_falix_server():
     options = Options()
     options.add_argument("--headless")
-    options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")  # Needed for some Linux containers
-
+    options.add_argument("--disable-dev-shm-usage")
     driver = webdriver.Chrome(options=options)
 
     try:
-        driver.get(FALIX_CONSOLE_URL)
-        time.sleep(3)
-
-        email_input = driver.find_element(By.ID, "email")
-        password_input = driver.find_element(By.ID, "password")
-        login_button = driver.find_element(By.ID, "login-btn")
-
-        email_input.send_keys(FALIX_EMAIL)
-        password_input.send_keys(FALIX_PASSWORD)
-        login_button.click()
-
+        driver.get("https://client.falixnodes.net/server/console")
+        time.sleep(4)
+        driver.find_element(By.ID, "email").send_keys(FALIX_EMAIL)
+        driver.find_element(By.ID, "password").send_keys(FALIX_PASSWORD)
+        driver.find_element(By.ID, "login-btn").click()
         time.sleep(7)
-
-        start_button = driver.find_element(By.XPATH, "//button[contains(text(),'Start')]")
-        start_button.click()
+        driver.find_element(By.XPATH, "//button[contains(text(),'Start')]").click()
         time.sleep(5)
-
         driver.quit()
         return True
-
     except Exception as e:
-        print("Error starting server:", e)
+        print("Error:", e)
         driver.quit()
         return False
 
-def startserver(update: Update, context: CallbackContext):
+def start_server(update: Update, context: CallbackContext):
     update.message.reply_text("Starting your FalixNodes server, please wait...")
     success = start_falix_server()
     if success:
-        update.message.reply_text("Server started successfully!")
+        update.message.reply_text("✅ Server started successfully!")
     else:
-        update.message.reply_text("Failed to start the server. Check logs.")
+        update.message.reply_text("❌ Failed to start server.")
 
-def main():
-    updater = Updater(TELEGRAM_TOKEN)
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("startserver", startserver))
-    updater.start_polling()
-    updater.idle()
-# FAKE web server just to keep Render Web Service alive
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import threading
+dispatcher.add_handler(CommandHandler("startserver", start_server))
 
-class FakeHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is running.")
+@app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot)
+    dispatcher.process_update(update)
+    return "ok"
 
-def start_fake_server():
-    server = HTTPServer(("0.0.0.0", 10000), FakeHandler)
-    server.serve_forever()
+@app.route("/")
+def index():
+    return "Bot is running."
 
-# Run the bot AND the fake web server
-if __name__ == '__main__':
-    threading.Thread(target=main).start()
-    start_fake_server()
-
+if __name__ == "__main__":
+    bot.set_webhook(url=f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/{TELEGRAM_TOKEN}")
+    app.run(host="0.0.0.0", port=PORT)
