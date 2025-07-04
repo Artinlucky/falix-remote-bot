@@ -1,5 +1,6 @@
 FROM python:3.11-slim
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     wget unzip curl gnupg2 \
     fonts-liberation libnss3 libxss1 libasound2 \
@@ -7,23 +8,23 @@ RUN apt-get update && apt-get install -y \
     libxcb-dri3-0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
     xvfb ca-certificates --no-install-recommends
 
-# Install latest Google Chrome
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /usr/share/keyrings/google-key.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-key.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
-    > /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && apt-get install -y google-chrome-stable
+# Install Google Chrome v114 and matching ChromeDriver (guaranteed compatible)
+RUN mkdir -p /opt/chrome && \
+    wget -q https://storage.googleapis.com/chrome-for-testing-public/114.0.5735.90/linux64/chrome-linux64.zip && \
+    unzip chrome-linux64.zip -d /opt/chrome && \
+    rm chrome-linux64.zip && \
+    ln -s /opt/chrome/chrome-linux64/chrome /usr/bin/google-chrome
 
-# Install ChromeDriver matching Chrome
-RUN CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+\.' | head -1) && \
-    CHROMEDRIVER_URL=$(curl -s https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json \
-        | grep -A 6 "\"version\": \"$CHROME_VERSION" | grep "chromedriver_linux64" | grep "url" | cut -d '"' -f 4) && \
-    wget -O /tmp/chromedriver.zip "$CHROMEDRIVER_URL" && \
-    unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
-    rm /tmp/chromedriver.zip && \
+RUN mkdir -p /opt/chromedriver && \
+    wget -q https://storage.googleapis.com/chrome-for-testing-public/114.0.5735.90/linux64/chromedriver-linux64.zip && \
+    unzip chromedriver-linux64.zip -d /opt/chromedriver && \
+    rm chromedriver-linux64.zip && \
+    mv /opt/chromedriver/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver && \
     chmod +x /usr/local/bin/chromedriver
 
 ENV DISPLAY=:99
 
+# Setup app
 WORKDIR /app
 COPY . /app
 
