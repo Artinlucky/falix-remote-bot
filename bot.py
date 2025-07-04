@@ -14,7 +14,6 @@ PORT = int(os.environ.get('PORT', 10000))
 
 bot = Bot(token=TELEGRAM_TOKEN)
 app = Flask(__name__)
-
 dispatcher = Dispatcher(bot=bot, update_queue=None, use_context=True)
 
 def start_falix_server():
@@ -22,6 +21,7 @@ def start_falix_server():
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.binary_location = "/usr/bin/google-chrome"
     driver = webdriver.Chrome(options=options)
 
     try:
